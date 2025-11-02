@@ -1,214 +1,223 @@
-# Bomber Friends the CLI Game
-# ===========================
-# CLI game taking advantage 
-# Python OOP Capabilities
-
-# BASIC BUILD UP SESSION
-# Session 1: October 28 19:27 - 20:13 >>> Basic Class Definition, Interobject actionability
-# Session 2: October 28 21:58 - 23:59 >>> Experimentation with Threading
-# Session 3: October 29 00:27 - 02:01 >>> Random saSpawnpoint, Assignment of Properties, Grid Reflection
-# Session 4: October 29 02:50 - 03:41 >>> Refactoring and Debugging
-# Session 5: October 29 09:31 - 11:13 >>> Player and Enemy Movement, 2 - Player Gamemode
-# Session 6: October 29 11:47 - 12:52 >>> Asynchronization of Functions
-# Session 7: Octover 29 13:36 - 14:30 >>> Removal of Threading and Replacing with Asyncio. TODO: Critical Bug in Board Creation Re: Player vs People
-# Session 8: October 29 16:03 - 17:37 >>> SuperSkills Shit TODO: Critical Bug disallowing player to move after bomb is placed -> most likely due to the implementation where players should not be passable
-# Session 9: October 30 09:42 - 11:30 >>> Gave up, initiated refactoring since classes were not modular, too code specific
-
-# REFACTORING SESSION
-# Session 1: October 31 16:20 - 16:50 >> Started Refactoring, I hate myself for it
-# Session 2: November 1 11:00 - 12:30 >> Starting to regret refactoring
-# Session 3: November 1 14:32 - 18:47 >> FIXED: Critical bug disallowing movement, Code is back to original functionality before the refactoring session
-# Session 4: November 1 19:54
-from random import randint
 import keyboard
 import random
 import asyncio
+from Refactored_Bomb_Friend_Game import board_movement, bomb_cell
+from Refactored_Bomb_Friend_Game import Grid, PlayableEntity, SkillInstance, raygun_skill
+from typing import Any
 from time import sleep
 
-from bfGame import Grid, playableCharacter
 
-def init():
-    grid = Grid()
-    player1 = playableCharacter('Basic')
-    skillGrant = random.choice(['speedBoost', 'IEDSpecialist', 'fastHand'])
 
-    match skillGrant:
-        case 'speedBoost':
-            player1.propUpdate(skillGrant, True)
-            print("SKILL GRANTED:", skillGrant)
-        case 'IEDSpecialist':
-            player1.propUpdate(skillGrant, True)
-            print("SKILL GRANTED:", skillGrant)
-        case 'fastHand':
-            player1.propUpdate(skillGrant, True)
-            print("SKILL GRANTED:", skillGrant)
-        case _:
-            for skill in player1.skills.keys():
-                player1.propUpdate(skill, True) 
-                print("SKILL GRANTED:", skillGrant)
+# game_initialization
+
+def game_init() -> Any | None:
+    skill_set = ['speed_boost', 'quick_hand', 'master_of_rayguns']
+    input("""
+╔════════════════════════════════════════════════════╗
+║                                                    ║
+║        ██████╗  █████╗ ███╗   ███╗███████╗         ║
+║       ██╔════╝ ██╔══██╗████╗ ████║██╔════╝         ║
+║       ██║  ███╗███████║██╔████╔██║█████╗           ║
+║       ██║   ██║██╔══██║██║╚██╔╝██║██╔══╝           ║
+║       ╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗         ║
+║        ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝         ║
+║                                                    ║
+║        Welcome to the Ultimate Grid Bomber!        ║
+║                                                    ║
+║        Player 1 Controls:                          ║
+║          Move: W A S D                             ║
+║          Place Bomb: E                             ║
+║          Special Skill: Q                          ║
+║                                                    ║
+║        Player 2 Controls:                          ║
+║          Move: Arrow Keys                          ║
+║          Place Bomb: P                             ║
+║          Special Bomb: O                           ║
+║                                                    ║
+║        Objective:                                  ║
+║          Outsmart your opponent. Bomb wisely.      ║
+║          Break through blocks. Stay alive.         ║
+║                                                    ║
+║        Press any key to begin...                   ║
+╚════════════════════════════════════════════════════╝
+""")
     
-    sleep(4)
-    return grid, player1
+    gameplay_mode = input('=======================\nBOMBER FRIENDS! IN CLI!\n[s] - single player\n[m] - 2 player\n=======================\n>>>')
 
-def movementHandling(grid : Grid,coords : tuple[int, int], action : str, entityType : str, isBoosted : bool = False) -> tuple[int,int]:
-    newCords = grid.move(coords, action, entityType, isBoosted)
-    return newCords if newCords is not None else coords
+    game_board = Grid()
+    occupied_cell : set[tuple[int, int]]= set()
 
-async def playerMovementHandling(grid : Grid, playerCords : tuple[int, int], skillGranted : str | None = None):
-    spdBst = True if skillGranted == 'speedBoost' else False
-    IEDSkill = True if skillGranted == 'IEDSpecialist' else False #type: ignore <<<<
-    fastHand = True if skillGranted == 'fastHand' else False
-    while True:
-        if grid.gameOver:
-            break
-        # WASD player movement
+    #player 1
+    skill_1 = random.choice(skill_set)
+    max_skill_1 = SkillInstance(skill_1)
+    player_1 = PlayableEntity(skill_1)
+    player_1_coords = player_1.get_coordinate()
+    player_1_cell = game_board.return_cell(player_1_coords)
+    player_1_cell.property_update('isPlayer', True)
+    occupied_cell.add(player_1_coords)
+
+    #player 2/enemy AI
+    skill_2 = random.choice(skill_set)
+    max_skill_2 = SkillInstance(skill_2)
+    player_2 = PlayableEntity(skill_2, entity = 'player_2')
+    player_2_coords = player_2.get_coordinate()
+    player_2_cell = game_board.return_cell(player_2_coords)
+    player_2_cell.property_update('isEnemy', True)
+    occupied_cell.add(player_2_coords)
+    print(skill_1, '\n', skill_2)
+    sleep(5)
+
+    #breakable blocks
+    while len(occupied_cell) < 15:
+        cell_coord = (random.randint(0,9), random.randint(0,9))
+        if cell_coord not in occupied_cell:
+            occupied_cell.add(cell_coord)
+            cell = game_board.return_cell(cell_coord)
+            cell.property_update('isPassable', False)
+            cell.property_update('isBreakable', False)
+    
+    #unbreakable blocks
+    while len(occupied_cell) < 25:
+        cell_coord = (random.randint(0,9), random.randint(0,9))
+        if cell_coord not in occupied_cell:
+            occupied_cell.add(cell_coord)
+            cell = game_board.return_cell(cell_coord)
+            cell.property_update('isPassable', False)
+            cell.property_update('isBreakable', True)
+
+    #skill point adder cells
+    while len(occupied_cell) < 30:
+        cell_coord = (random.randint(0,9), random.randint(0,9))
+        if cell_coord not in occupied_cell:
+            occupied_cell.add(cell_coord)
+            cell = game_board.return_cell(cell_coord)
+            cell.property_update('isAddSkill', True)
+
+    game_board.draw_board()
+
+    match gameplay_mode.lower():
+        case 'm':
+            tasks = [
+                asyncio.create_task(player_movement_handling(game_board, player_1_coords, skill_1, max_skill_1)),
+                asyncio.create_task(player_movement_handling_2(game_board, player_2_coords, skill_2, max_skill_2))
+            ]
+        case 's':
+            cache : list[str] = []
+            tasks = [
+                asyncio.create_task(player_movement_handling(game_board, player_1_coords, skill_1, max_skill_1)),
+                asyncio.create_task(enemy_AI_handling(game_board, player_2_coords, cache, skill_2, max_skill_2))
+            ]
+
+        case _:
+            print('Invalid game mode was selected')
+            return
+    
+    return (game_board, tasks)
+
+async def player_movement_handling(grid : Grid, coords: tuple[int, int], skill: str, max_count : SkillInstance):
+    while not grid.game_over:
         if keyboard.is_pressed('w'):
-            playerCords = movementHandling(grid ,playerCords, 'w', 'isPlayer', spdBst)
+            coords = board_movement(grid, 'isPlayer', coords, 'w', skill, max_count)
             await asyncio.sleep(0.3)
-
+    
         elif keyboard.is_pressed('a'):
-            playerCords = movementHandling(grid ,playerCords, 'a', 'isPlayer', spdBst)
+            coords = board_movement(grid, 'isPlayer', coords, 'a', skill, max_count)
             await asyncio.sleep(0.3)
 
         elif keyboard.is_pressed('s'):
-            playerCords = movementHandling(grid ,playerCords, 's', 'isPlayer', spdBst)
+            coords = board_movement(grid, 'isPlayer', coords, 's', skill, max_count)
             await asyncio.sleep(0.3)
 
-        elif keyboard.is_pressed('d'):            
-            playerCords = movementHandling(grid ,playerCords, 'd', 'isPlayer', spdBst)
+        elif keyboard.is_pressed('d'):
+            coords = board_movement(grid, 'isPlayer', coords, 'd', skill, max_count)
             await asyncio.sleep(0.3)
 
-        # Bomb placement move
+        elif keyboard.is_pressed('q'):
+            if max_count.name == 'quick_hand':
+                if max_count.count > 0:
+                    await bomb_cell(grid, coords, skill)
+                    max_count.decrement()
+            elif max_count.name == 'master_of_rayguns':
+                if max_count.count > 0:
+                    await raygun_skill(grid, coords)
+            await asyncio.sleep(0.3)
+
         elif keyboard.is_pressed('e'):
-            await grid.bombPlace(playerCords, fastHand)
+            await bomb_cell(grid, coords)
             await asyncio.sleep(0.3)
 
         await asyncio.sleep(0.05)
 
-async def enemyMovementHandling(grid : Grid, enemyCords: tuple[int, int], skillGranted : str | None = None):
-    while True:
-        if grid.gameOver:
-            break
-        # Arrow Key Enemy Movement
+async def player_movement_handling_2(grid : Grid, coords: tuple[int, int], skill: str, max_count : SkillInstance):
+    while not grid.game_over:
         if keyboard.is_pressed('up'):
-            enemyCords = movementHandling(grid ,enemyCords, 'up', 'isEnemy')
+            coords = board_movement(grid, 'isEnemy', coords, 'up', skill, max_count)
+            await asyncio.sleep(0.3)        
+
+        elif keyboard.is_pressed('left'):
+            coords = board_movement(grid, 'isEnemy', coords, 'left', skill, max_count)
             await asyncio.sleep(0.3)
 
         elif keyboard.is_pressed('down'):
-            enemyCords = movementHandling(grid ,enemyCords, 'down', 'isEnemy')
+            coords = board_movement(grid, 'isEnemy', coords, 'down', skill, max_count)
             await asyncio.sleep(0.3)
 
-        elif keyboard.is_pressed('left'):
-            enemyCords = movementHandling(grid ,enemyCords, 'left', 'isEnemy')
+        elif keyboard.is_pressed('right'):
+            coords = board_movement(grid, 'isEnemy', coords, 'right', skill, max_count)
             await asyncio.sleep(0.3)
 
-        elif keyboard.is_pressed('right'):            
-            enemyCords = movementHandling(grid ,enemyCords, 'right', 'isEnemy')
+        elif keyboard.is_pressed('o'):
+            if max_count.name == 'quick_hand':
+                if max_count.count > 0:
+                    await bomb_cell(grid, coords, skill)
+                    max_count.decrement()
+            elif max_count.name == 'master_of_rayguns':
+                if max_count.count > 0:
+                    await raygun_skill(grid, coords)
             await asyncio.sleep(0.3)
-        # Bomb placement move for enemy
+
         elif keyboard.is_pressed('p'):
-            await grid.bombPlace(enemyCords)
+            await bomb_cell(grid, coords)
             await asyncio.sleep(0.3)
-
+        
         await asyncio.sleep(0.05)
 
-async def enemyAIHandling(grid : Grid, enemyCords : tuple[int,int] , cache : list[str]):
-    options : list[str] = ['up', 'down', 'left', 'right', 'p']
-    while True:
-        if grid.gameOver:
-            break
+async def enemy_AI_handling(game_board : Grid, AI_coordinate : tuple[int,int] , cache : list[str],  skill : str, max_count : SkillInstance):
+    options : list[str] = ['up', 'down', 'left', 'right', 'p', 'o']
+    while not game_board.game_over:
         filtered : list[str] = options.copy()
-
         # If 'p' was the last move, block it for 10 turns
         if 'p' in cache:
             filtered.remove('p')
 
         choice : str = random.choice(filtered)
         if choice == 'p':
-            await grid.bombPlace(enemyCords)
+            await bomb_cell(game_board , AI_coordinate, skill)
         else:
-            newCords = grid.move(enemyCords, choice, 'isEnemy')
-            if newCords is not None:
-                enemyCords = newCords
-                await asyncio.sleep(1)
+            temp_coord = board_movement(game_board, 'isEnemy', AI_coordinate, choice, skill , max_count)
+            if AI_coordinate != temp_coord:
+                AI_coordinate = temp_coord
+                await asyncio.sleep(0.25)
 
         cache.append(choice)
         if len(cache) > 10:
             cache.pop(0)
 
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(0.3)
 
 async def main():
-        # youkoso
-    gamemode = input('=======\nWELCOME\n   2   \nBom-ber\nFriends\n=======\n\nSelect a Gamemode\n[S] - Single Player\n[M] - 2 Player Mode\n>>>').lower().strip()
-    
-    grid, playerCharacter = init()
-    for key, item in playerCharacter.skills.items():
-        if item == True:
-            skillGranted : str = key
-            continue
+    result = game_init()
+    if not result:
+        return
+    grid, tasks = result
 
-    grid.gridBuilder(10)
-
-    used : set[tuple[int, int]] = set()
-
-    # random player spawnpoint
-    playerCords = (randint(0, 5), randint(0, 5))
-    used.add(playerCords)
-    
-    # random enemy spawnpoint
-    enemyCords = (randint(5, 9), randint(5, 9))
-    used.add(enemyCords)
-
-    playerRow, playerCol = playerCords
-    playerSpawnpoint = grid.getCell(playerRow, playerCol)
-    playerSpawnpoint.propUpdate('isPlayer', True)
-
-    enemyRow, enemyCol = enemyCords
-    enemySpawnpoint = grid.getCell(enemyRow, enemyCol)
-    enemySpawnpoint.propUpdate('isEnemy', True)
-
-    # unbreakable blocks spawnpoint
-    while len(used) < 15:
-        uB = (randint(0, 9), randint(0, 9))
-        if uB not in used:
-            used.add(uB)
-            rcell = grid.getCell(uB[0], uB[1])
-            rcell.propUpdate('isPassable', False)
-            rcell.propUpdate('isBreakable', False)
-
-    # breakable blocks spawnpoint
-    while len(used) < 25:
-        b = (randint(0, 9), randint(0, 9))
-        if b not in used:
-            used.add(b)
-            bcell = grid.getCell(b[0], b[1])
-            bcell.propUpdate('isPassable', False)
-            bcell.propUpdate('isBreakable', True)
-
-    grid.show()
-    
-    tasks = []
-
-    if gamemode == 'm':
-        tasks = [
-            asyncio.create_task(playerMovementHandling(grid, playerCords, skillGranted)), #type: ignore
-            asyncio.create_task(enemyMovementHandling(grid, enemyCords))
-        ]
-        
-    elif gamemode == 's':
-        cache : list[str] = []
-        tasks = [
-            asyncio.create_task(playerMovementHandling(grid, playerCords, skillGranted)),#type: ignore
-            asyncio.create_task(enemyAIHandling(grid, enemyCords, cache))
-        ]
-
-    while not grid.gameOver:
+    while not grid.game_over:
         await asyncio.sleep(0.1)
 
     for task in tasks:
         task.cancel()
 
-    print("Exiting game...")
+    print("Game Over.")
+
 if __name__ == '__main__':
     asyncio.run(main())
