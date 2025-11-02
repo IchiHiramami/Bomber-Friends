@@ -1,4 +1,3 @@
-```markdown
 # 💣 Bomber Friends the CLI Game
 ===========================
 
