@@ -82,6 +82,8 @@ Welcome to **Ultimate Bomber Friends**, a fast-paced, grid-based multiplayer gam
 - **Session 4:** November 1 19:54–22:24 → ALL GAME FUNCTIONS IMPLEMENTED  
   > TODO: Fix bug in raygun function
 
+### FINALIZING SESSIONS
+- **SEssion 1:** November 4 12:51–14:14 → FIXED: Raygun Function Bug; ADDED: UI Elements for consistency
 ---
 
 ## 🧪 Known Issues

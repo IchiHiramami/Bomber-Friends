@@ -22,10 +22,11 @@ class Cell:
         self.properties[key] = value
 
     def __repr__(self):
-        # if cell is the player or the enemy (or player2 in multiplayer)
+        # ray gun skill used, show board highlight
         if self.properties['isHighlight']:
             return '[#]'
         
+        # if cell is the player or the enemy (or player2 in multiplayer)        
         elif self.properties['isPlayer']:
             return '[\u263a]'
         elif self.properties['isEnemy']:
@@ -90,11 +91,11 @@ class SkillInstance:
         self.name = name
 
     def decrement(self):
-        if self.count >= 0:
+        if self.count > 0:
             self.count -= 1
 
     def increment(self):
-        self.count -= 1
+        self.count += 1
 
 class Grid:
     def __init__(self, length : int = 10):
@@ -252,27 +253,27 @@ async def bomb_cell(grid: Grid, entity_coordinate : tuple[int, int], skill_grant
     asyncio.create_task(delayed_bomb_explosion_logic(grid, [(row, column)]))
     return
 
-async def raygun_skill(grid : Grid, skill_activation_coordinate : tuple[int, int]):
+async def raygun_skill(grid: Grid, skill_activation_coordinate: tuple[int, int]):
     row, col = skill_activation_coordinate
-    cross_cells : set[tuple[int, int]] = set()
-    
-    for i in range(9):
+    cross_cells: set[tuple[int, int]] = set()
+
+    for i in range(10):
         cross_cells.add((row, i))
         cross_cells.add((i, col))
 
-    for row, col in cross_cells:
-        raygun_cell = grid.return_cell((row, col))
+    for r, c in cross_cells:
+        raygun_cell = grid.return_cell((r, c))
+        raygun_cell.property_update('isPassable', True)
         raygun_cell.property_update('isHighlight', True)
-        raygun_cell.property_update('isPassable', True)
-    
-    grid.draw_board()
-    await asyncio.sleep(5)
 
-    for row, col in cross_cells:
-        raygun_cell = grid.return_cell((row, col))
-        raygun_cell.property_update('isPlayer', False)
-        raygun_cell.property_update('isEnemy', False)
-        raygun_cell.property_update('isPassable', True)
+    grid.draw_board()
+    await asyncio.sleep(3)
+
+    for r, c in cross_cells:
+        raygun_cell = grid.return_cell((r, c))
+        if (r, c) != skill_activation_coordinate:
+            raygun_cell.property_update('isPlayer', False)
+            raygun_cell.property_update('isEnemy', False)
         raygun_cell.property_update('isHighlight', False)
 
     grid.draw_board()
